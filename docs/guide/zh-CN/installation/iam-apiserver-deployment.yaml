@@ -1,0 +1,78 @@
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels: # 设定资源的标�?    app: iam-apiserver
+  name: iam-apiserver
+  namespace: default
+spec:
+  progressDeadlineSeconds: 10 # 指定多少时间内不能完成滚动升级就视为失败，滚动升级自动取�?  replicas: 1 # 声明副本数，建议 >= 2
+  revisionHistoryLimit: 5 # 设置保留的历史版本个数，默认�?0
+  selector: # 选择�?    matchLabels: # 匹配标签
+      app: iam-apiserver # 标签格式为key: value�?  strategy: # 指定部署策略
+    rollingUpdate:
+      maxSurge: 1 # 最大额外可以存在的副本数，可以为百分比，也可以为整�?      maxUnavailable: 1 # 表示在更新过程中能够进入不可用状态的 Pod 的最大值，可以为百分比，也可以为整�?    type: RollingUpdate # 更新策略，包括：重建(Recreate)、RollingUpdate(滚动更新)
+  template: # 指定Pod创建模板。注意：以下定义为Pod的资源定�?    metadata: # 指定Pod的元数据
+      labels: # 指定Pod的标�?        app: iam-apiserver 
+    spec:
+      affinity:
+        podAntiAffinity: # Pod反亲和性，尽量避免同一个应用调度到相同Node
+          preferredDuringSchedulingIgnoredDuringExecution: # 软需�?          - podAffinityTerm:
+              labelSelector:
+                matchExpressions: # 有多个选项，只有同时满足这些条件的节点才能运行 Pod
+                - key: app
+                  operator: In # 设定标签键与一组值的关系，In、NotIn、Exists、DoesNotExist
+                  values:
+                  - iam-apiserver
+              topologyKey: kubernetes.io/hostname
+            weight: 100 # weight 字段值的范围�?-100�?      containers: 
+      - command: # 指定运行命令
+        - /opt/iam/bin/iam-apiserver # 运行参数
+        - --config=/etc/iam/iam-apiserver.yaml
+        image: ccr.ccs.tencentyun.com/lkccc/iam-apiserver-amd64:v1.0.6 # 镜像名，遵守镜像命名规范
+        imagePullPolicy: Always # 镜像拉取策略。IfNotPresent：优先使用本地镜像；Never：使用本地镜像，本地镜像不存在，则报错；Always：默认值，每次都重新拉取镜�?        # lifecycle: # kubernetes支持postStart和preStop事件。当一个容器启动后，Kubernetes将立即发送postStart事件；在容器被终结之前，Kubernetes将发送一个preStop事件
+        name: iam-apiserver # 容器名称，与应用名称保持一�?        ports: # 端口设置
+        - containerPort: 8443 # 容器暴露的端�?          name: secure # 端口名称
+          protocol: TCP # 协议，TCP和UDP
+        livenessProbe: # 存活检查，检查容器是否正常，不正常则重启实例
+          httpGet: # HTTP请求检查方�?            path: /healthz # 请求路径
+            port: 8080 # 检查端�?            scheme: HTTP # 检查协�?          initialDelaySeconds: 5 # 启动延时，容器延时启动健康检查的时间
+          periodSeconds: 10 # 间隔时间，进行健康检查的时间间隔
+          successThreshold: 1 # 健康阀值，表示后端容器从失败到成功的连续健康检查成功次�?          failureThreshold: 1 # 不健康阀值，表示后端容器从成功到失败的连续健康检查成功次�?          timeoutSeconds: 3 # 响应超时，每次健康检查响应的最大超时时�?        readinessProbe: # 就绪检查，检查容器是否就绪，不就绪则停止转发流量到当前实�?          httpGet: # HTTP请求检查方�?            path: /healthz # 请求路径
+            port: 8080 # 检查端�?            scheme: HTTP # 检查协�?          initialDelaySeconds: 5 # 启动延时，容器延时启动健康检查的时间
+          periodSeconds: 10 # 间隔时间，进行健康检查的时间间隔
+          successThreshold: 1 # 健康阀值，表示后端容器从失败到成功的连续健康检查成功次�?          failureThreshold: 1 # 不健康阀值，表示后端容器从成功到失败的连续健康检查成功次�?          timeoutSeconds: 3 # 响应超时，每次健康检查响应的最大超时时�?        startupProbe: # 启动探针，可以知道应用程序容器什么时候启动了
+          failureThreshold: 10
+          httpGet:
+            path: /healthz
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        resources: # 资源管理
+          limits: # limits用于设置容器使用资源的最大上�?避免异常情况下节点资源消耗过�?            cpu: "1" # 设置cpu limit�?核心 = 1000m
+            memory: 1Gi # 设置memory limit�?G = 1024Mi
+          requests: # requests用于预分配资�?当集群中的节点没有request所要求的资源数量时,容器会创建失�?            cpu: 250m # 设置cpu request
+            memory: 500Mi # 设置memory request
+        terminationMessagePath: /dev/termination-log # 容器终止时消息保存路�?        terminationMessagePolicy: File # 仅从终止消息文件中检索终止消�?        volumeMounts: # 挂载日志�?        - mountPath: /etc/iam/iam-apiserver.yaml # 容器内挂载镜像路�?          name: iam # 引用的卷名称
+          subPath: iam-apiserver.yaml # 指定所引用的卷内的子路径，而不是其根路径�?        - mountPath: /etc/iam/cert
+          name: iam-cert
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always # 重启策略，Always、OnFailure、Never
+      schedulerName: default-scheduler # 指定调度器的名字
+      imagePullSecrets: # 在Pod中设置ImagePullSecrets只有提供自己密钥的Pod才能访问私有仓库
+        - name: ccr-registry # 镜像仓库的Secrets需要在集群中手动创�?      securityContext: {} # 指定安全上下�?      terminationGracePeriodSeconds: 5 # 优雅关闭时间，这个时间内优雅关闭未结束，k8s 强制 kill
+      volumes: # 配置数据卷，类型详见https://kubernetes.io/zh/docs/concepts/storage/volumes
+      - configMap: # configMap 类型的数据卷
+          defaultMode: 420 #权限设置0~0777，默�?664
+          items:
+          - key: iam-apiserver.yaml
+            path: iam-apiserver.yaml
+          name: iam # configmap名称
+        name: iam # 设置卷名称，与volumeMounts名称对应
+      - configMap:
+          defaultMode: 420
+          name: iam-cert
+        name: iam-cert

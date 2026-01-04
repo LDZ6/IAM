@@ -1,0 +1,20 @@
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: iam-apiserver
+  name: iam-apiserver
+  namespace: default
+spec:
+  clusterIP: 192.168.0.231 # 虚拟服务地址
+  externalTrafficPolicy: Cluster # 表示此服务是否希望将外部流量路由到节点本地或集群范围的端�?  ports: # service需要暴露的端口列表
+  - name: https #端口名称
+    nodePort: 30443 # 当type = NodePort时，指定映射到物理机的端口号
+    port: 8443 # 服务监听的端口号
+    protocol: TCP # 端口协议，支持TCP和UDP，默认TCP
+    targetPort: 8443 # 需要转发到后端Pod的端口号
+  selector: # label selector配置，将选择具有label标签的Pod作为其后端RS
+    app: iam-apiserver
+  sessionAffinity: None # 是否支持session
+  type: NodePort # service的类型，指定service的访问方式，默认为clusterIp

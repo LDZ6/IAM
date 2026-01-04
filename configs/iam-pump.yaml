@@ -1,0 +1,34 @@
+#
+
+purge-delay: 10 # 审计日志清理时间间隔，默�?10s
+health-check-path: healthz # 健康检查路由，默认�?/healthz
+health-check-address: 0.0.0.0:7070 # 健康检查绑定端口，默认�?0.0.0.0:7070
+omit-detailed-recording: true # 设置�?true 会记录详细的授权审计日志，默认为 false
+
+# Redis 配置
+redis:
+  host: ${REDIS_HOST} # redis 地址，默�?127.0.0.1:6379
+  port: ${REDIS_PORT} # redis 端口，默�?6379
+  password: ${REDIS_PASSWORD} # redis 密码
+  database: 0 # redis 数据�?  optimisation-max-idle: 100  # redis 连接池中的最大空闲连接数
+  optimisation-max-active: 0 # 最大活跃连接数
+  enable-cluster: false # 是否开启集群模�?  #addrs:
+  #master-name: # redis 集群 master 名称
+  #username: # redis 登录用户�?  #timeout: # 连接 redis 时的超时时间
+  #use-ssl: # 是否启用 TLS
+  #ssl-insecure-skip-verify: # 当连�?redis 时允许使用自签名证书
+
+# pump 配置
+pumps:
+  mongo:
+    type: mongo # pump 类型
+    meta:
+      collection_name: ${IAM_PUMP_COLLECTION_NAME} # mongodb collection name
+      mongo_url: ${IAM_PUMP_MONGO_URL} # mongodb url
+      collection_cap_max_size_bytes: 1048576 # 设置最大的capped collection
+      collection_cap_enable: true
+
+log:
+    name: pump # Logger的名�?    development: true # 是否是开发模式。如果是开发模式，会对DPanicLevel进行堆栈跟踪�?    level: debug # 日志级别，优先级从低到高依次为：debug, info, warn, error, dpanic, panic, fatal�?    format: console # 支持的日志输出格式，目前支持console和json两种。console其实就是text格式�?    enable-color: true # 是否开启颜色输出，true:是，false:�?    disable-caller: false # 是否开�?caller，如果开启会在日志中显示调用日志所在的文件、函数和行号
+    disable-stacktrace: false # 是否再panic及以上级别禁止打印堆栈信�?    output-paths: ${IAM_LOG_DIR}/iam-pump.log,stdout # 多个输出，逗号分开。stdout：标准输出，
+    error-output-paths: ${IAM_LOG_DIR}/iam-pump.error.log # zap内部(非业�?错误日志输出路径，多个输出，逗号分开
