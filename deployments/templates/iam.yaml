@@ -1,0 +1,711 @@
+---
+# Source: iam/templates/iam-cert-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: iam
+data:
+  {}
+---
+# Source: iam/templates/iam-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: iam
+data:
+  iam-: ""
+  iam-apiserver.yaml: |
+  
+    # iam-apiserver 全配�?  
+    # RESTful 服务配置
+    server:
+        mode: debug # server mode: release, debug, test，默�?release
+        healthz: true # 是否开启健康检查，如果开启会安装 /healthz 路由，默�?true
+        middlewares: recovery,logger,secure,nocache,cors,dump # 加载�?gin 中间件列表，多个中间件，逗号(,)隔开
+        max-ping-count: 3 # http 服务启动后，自检尝试次数，默�?3
+  
+    # GRPC 服务配置
+    grpc:
+      bind-address: 0.0.0.0 # grpc 安全模式�?IP 地址，默�?0.0.0.0
+      bind-port: 8081 # grpc 安全模式的端口号，默�?8081
+  
+    # HTTP 配置
+    insecure:
+        bind-address: 0.0.0.0 # 绑定的不安全 IP 地址，设置为 0.0.0.0 表示使用全部网络接口，默认为 127.0.0.1
+        bind-port: 8080 # 提供非安全认证的监听端口，默认为 8080
+  
+    # HTTPS 配置
+    secure:
+        bind-address: 0.0.0.0 # HTTPS 安全模式�?IP 地址，默认为 0.0.0.0
+        bind-port: 8443 # 使用 HTTPS 安全模式的端口号，设置为 0 表示不启�?HTTPS，默认为 8443
+        tls:
+            #cert-dir: .iam/cert # TLS 证书所在的目录，默认值为 /var/run/iam
+            #pair-name: iam # TLS 私钥对名称，默认 iam
+            cert-key:
+                cert-file: /etc/iam/cert/iam-apiserver.pem # 包含 x509 证书的文件路径，�?HTTPS 认证
+                private-key-file: /etc/iam/cert/iam-apiserver-key.pem # TLS 私钥
+  
+    # MySQL 数据库相关配�?    mysql:
+      host: 127.0.0.1:3306 # MySQL 机器 ip 和端口，默认 127.0.0.1:3306
+      username: iam # MySQL 用户�?建议授权最小权限集)
+      password: iam59!z$ # MySQL 用户密码
+      database: iam # iam 系统所用的数据库名
+      max-idle-connections: 100 # MySQL 最大空闲连接数，默�?100
+      max-open-connections: 100 # MySQL 最大打开的连接数，默�?100
+      max-connection-life-time: 10s # 空闲连接最大存活时间，默认 10s
+      log-level: 4 # GORM log level, 1: silent, 2:error, 3:warn, 4:info
+  
+    # Redis 配置
+    redis:
+      host: 127.0.0.1 # redis 地址，默�?127.0.0.1:6379
+      port: 6379 # redis 端口，默�?6379
+      password: iam59!z$ # redis 密码
+      #addrs:
+      #master-name: # redis 集群 master 名称
+      #username: # redis 登录用户�?      #database: # redis 数据�?      #optimisation-max-idle:  # redis 连接池中的最大空闲连接数
+      #optimisation-max-active: # 最大活跃连接数
+      #timeout: # 连接 redis 时的超时时间
+      #enable-cluster: # 是否开启集群模�?      #use-ssl: # 是否启用 TLS
+      #ssl-insecure-skip-verify: # 当连�?redis 时允许使用自签名证书
+  
+    # JWT 配置
+    jwt:
+      realm: JWT # jwt 标识
+      key: dfVpOK8LZeJLZHYmHdb1VdyRrACKpqoo # 服务端密�?      timeout: 24h # token 过期时间(小时)
+      max-refresh: 24h # token 更新时间(小时)
+  
+    log:
+        name: apiserver # Logger的名�?        development: true # 是否是开发模式。如果是开发模式，会对DPanicLevel进行堆栈跟踪�?        level: debug # 日志级别，优先级从低到高依次为：debug, info, warn, error, dpanic, panic, fatal�?        format: console # 支持的日志输出格式，目前支持console和json两种。console其实就是text格式�?        enable-color: true # 是否开启颜色输出，true:是，false:�?        disable-caller: false # 是否开�?caller，如果开启会在日志中显示调用日志所在的文件、函数和行号
+        disable-stacktrace: false # 是否再panic及以上级别禁止打印堆栈信�?        output-paths: /var/log/iam/iam-apiserver.log,stdout # 支持输出到多个输出，逗号分开。支持输出到标准输出（stdout）和文件�?        error-output-paths: /var/log/iam/iam-apiserver.error.log # zap内部(非业�?错误日志输出路径，多个输出，逗号分开
+  
+    feature:
+      enable-metrics: true # 开�?metrics, router:  /metrics
+      profiling: true # 开启性能分析, 可以通过 <host>:<port>/debug/pprof/地址查看程序栈、线程等系统信息，默认值为 true
+  iam-authz-server.yaml: |
+  
+    # iam-authz-server 全配�?  
+    # IAM rpc 服务地址
+    rpcserver: 127.0.0.1:8081 # iam-apiserver grpc 服务器地址和端�?  
+    # TLS客户端证书文�?    client-ca-file: /etc/iam/cert/ca.pem # TLS 客户端证书，如果指定，则该客户端证书将被用于认证
+  
+    # RESTful 服务配置
+    server:
+        mode: debug # server mode: release, debug, test，默认release
+        healthz: true # 是否开启健康检查，如果开启会安装 /healthz 路由，默�?true
+        middlewares: recovery,logger,secure,nocache,cors,dump # 加载�?gin 中间件列表，多个中间件，逗号(,)隔开
+  
+    # HTTP 配置
+    insecure:
+        bind-address: 0.0.0.0 # 绑定的不安全 IP 地址，设置为 0.0.0.0 表示使用全部网络接口，默认为 127.0.0.1
+        bind-port: 9090 # 提供非安全认证的监听端口，默认为 8080
+  
+    # HTTPS 配置
+    secure:
+        bind-address: 0.0.0.0 # HTTPS 安全模式�?IP 地址，默认为 0.0.0.0
+        bind-port: 9443 # 使用 HTTPS 安全模式的端口号，设置为 0 表示不启�?HTTPS，默认为 8443
+        tls:
+            #cert-dir: .iam/cert # TLS 证书所在的目录，默认值为 /var/run/iam
+            #pair-name: iam # TLS 私钥对名称，默认 iam
+            cert-key:
+                cert-file: /etc/iam/cert/iam-authz-server.pem # 包含 x509 证书的文件路径，�?HTTPS 认证
+                private-key-file: /etc/iam/cert/iam-authz-server-key.pem # TLS 私钥
+  
+    # Redis 配置
+    redis:
+      host: 127.0.0.1 # redis 地址，默�?127.0.0.1:6379
+      port: 6379 # redis 端口，默�?6379
+      password: iam59!z$ # redis 密码
+      database: 0 # redis 数据�?      #addrs:
+      #master-name: # redis 集群 master 名称
+      #username: # redis 登录用户�?      #optimisation-max-idle:  # redis 连接池中的最大空闲连接数
+      #optimisation-max-active: # 最大活跃连接数
+      #timeout: # 连接 redis 时的超时时间
+      #enable-cluster: # 是否开启集群模�?      #use-ssl: # 是否启用 TLS
+      #ssl-insecure-skip-verify: # 当连�?redis 时允许使用自签名证书
+  
+    log:
+        name: authzserver # Logger的名�?        development: true # 是否是开发模式。如果是开发模式，会对DPanicLevel进行堆栈跟踪�?        level: debug # 日志级别，优先级从低到高依次为：debug, info, warn, error, dpanic, panic, fatal�?        format: console # 支持的日志输出格式，目前支持console和json两种。console其实就是text格式�?        enable-color: true # 是否开启颜色输出，true:是，false:�?        disable-caller: false # 是否开�?caller，如果开启会在日志中显示调用日志所在的文件、函数和行号
+        disable-stacktrace: false # 是否再panic及以上级别禁止打印堆栈信�?        output-paths: /var/log/iam/iam-authz-server.log,stdout # 多个输出，逗号分开。stdout：标准输出，
+        error-output-paths: /var/log/iam/iam-authz-server.error.log # zap内部(非业�?错误日志输出路径，多个输出，逗号分开
+  
+    analytics:
+        enable: true # 设置�?true �?iam-authz-server 会记录授权审计日�?        pool-size: 50 # 指定 worker 的个数，默认 50
+        records-buffer-size:  2000 # 缓存的授权日志消息数
+        flush-interval: 200 # 超时投递时间，单位：毫秒，0 < flush-interval <= 1000�?        enable-detailed-recording: true # 开启记录详情，详细记录的功�?        storage-expiration-time: 24h0m0s # key 过期时间
+  
+    feature:
+      enable-metrics: true # 开�?metrics, router:  /metrics
+      profiling: true # 开启性能分析, 可以通过 <host>:<port>/debug/pprof/地址查看程序栈、线程等系统信息，默认值为 true
+  iam-pump.yaml: |
+  
+    purge-delay: 10 # 审计日志清理时间间隔，默�?10s
+    health-check-path: healthz # 健康检查路由，默认�?/healthz
+    health-check-address: 0.0.0.0:7070 # 健康检查绑定端口，默认�?0.0.0.0:7070
+    omit-detailed-recording: true # 设置�?true 会记录详细的授权审计日志，默认为 false
+  
+    # Redis 配置
+    redis:
+      host: 127.0.0.1 # redis 地址，默�?127.0.0.1:6379
+      port: 6379 # redis 端口，默�?6379
+      password: iam59!z$ # redis 密码
+      database: 0 # redis 数据�?      optimisation-max-idle: 100  # redis 连接池中的最大空闲连接数
+      optimisation-max-active: 0 # 最大活跃连接数
+      enable-cluster: false # 是否开启集群模�?      #addrs:
+      #master-name: # redis 集群 master 名称
+      #username: # redis 登录用户�?      #timeout: # 连接 redis 时的超时时间
+      #use-ssl: # 是否启用 TLS
+      #ssl-insecure-skip-verify: # 当连�?redis 时允许使用自签名证书
+  
+    # pump 配置
+    pumps:
+      mongo:
+        type: mongo # pump 类型
+        meta:
+          collection_name: iam_analytics # mongodb collection name
+          mongo_url: mongodb://iam:iam59!z$@127.0.0.1:27017/iam_analytics?authSource=iam_analytics # mongodb url
+          collection_cap_max_size_bytes: 1048576 # 设置最大的capped collection
+          collection_cap_enable: true
+  
+    log:
+        name: apiserver # Logger的名�?        development: true # 是否是开发模式。如果是开发模式，会对DPanicLevel进行堆栈跟踪�?        level: debug # 日志级别，优先级从低到高依次为：debug, info, warn, error, dpanic, panic, fatal�?        format: console # 支持的日志输出格式，目前支持console和json两种。console其实就是text格式�?        enable-color: true # 是否开启颜色输出，true:是，false:�?        disable-caller: false # 是否开�?caller，如果开启会在日志中显示调用日志所在的文件、函数和行号
+        disable-stacktrace: false # 是否再panic及以上级别禁止打印堆栈信�?        output-paths: /var/log/iam/iam-pump.log,stdout # 多个输出，逗号分开。stdout：标准输出，
+        error-output-paths: /var/log/iam/iam-pump.error.log # zap内部(非业�?错误日志输出路径，多个输出，逗号分开
+  iamctl.yaml: |
+    apiVersion: v1
+    user:
+      #token: # JWT Token
+      username: admin # iam 用户�?      password: Admin@2021 # iam 密码
+      #secret-id: # 密钥 ID
+      #secret-key: # 密钥 Key
+      client-certificate: /home/colin/.iam/cert/admin.pem # 用于 TLS 的客户端证书文件路径
+      client-key: /home/colin/.iam/cert/admin-key.pem # 用于 TLS 的客户端 key 文件路径
+      #client-certificate-data:
+      #client-key-data:
+  
+    server:
+      address: 127.0.0.1:8443 # iam api-server 地址
+      timeout: 10s # 请求 api-server 超时时间
+      #max-retries: # 最大重试次数，默认�?0
+      #retry-interval: # 重试间隔，默认为 1s
+      #tls-server-name: # TLS 服务器名�?      #insecure-skip-tls-verify: # 设置�?true 表示跳过 TLS 安全验证模式，将使得 HTTPS 连接不安�?      certificate-authority: /etc/iam/cert/ca.pem # 用于 CA 授权�?cert 文件路径
+      #certificate-authority-data:
+---
+# Source: iam/templates/iam-apiserver-service.yaml
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: iam-apiserver
+  name: iam-apiserver
+spec:
+  ports:
+  - name: https
+    protocol: TCP
+    port: 8443
+    targetPort: 8443
+  - name: http
+    protocol: TCP
+    port: 8080
+    targetPort: 8080
+  - name: rpc
+    protocol: TCP
+    port: 8081
+    targetPort: 8081
+  selector:
+    app: iam-apiserver
+  sessionAffinity: None
+  type: ClusterIP
+---
+# Source: iam/templates/iam-authz-server-service.yaml
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: iam-authz-server
+  name: iam-authz-server
+spec:
+  ports:
+  - name: https
+    protocol: TCP
+    port: 9443
+    targetPort: 9443
+  - name: http
+    protocol: TCP
+    port: 9090
+    targetPort: 9090
+  selector:
+    app: iam-authz-server
+  sessionAffinity: None
+  type: ClusterIP
+---
+# Source: iam/templates/iam-pump-service.yaml
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: iam-pump
+  name: iam-pump
+spec:
+  ports:
+  - name: http
+    protocol: TCP
+    port: 7070
+    targetPort: 7070
+  selector:
+    app: iam-pump
+  sessionAffinity: None
+  type: ClusterIP
+---
+# Source: iam/templates/iam-apiserver-deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: iam-apiserver
+  name: iam-apiserver
+spec:
+  replicas: 1
+  progressDeadlineSeconds: 10
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: iam-apiserver
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: iam-apiserver
+    spec:
+      imagePullSecrets:
+        - name: ccr-registry
+      securityContext:
+        {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - iam-apiserver
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      containers:
+      - command:
+        - /opt/iam/bin/iam-apiserver
+        - --config=/etc/iam/iam-apiserver.yaml
+        image: "ccr.ccs.tencentyun.com/marmotedu/iam-apiserver-amd64:v1.6.2"
+        name: iam-apiserver
+        ports:
+        - containerPort: 8443
+          name: secure
+          protocol: TCP
+        - containerPort: 8080
+          name: insecure
+          protocol: TCP
+        - containerPort: 8081
+          name: rpc 
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+            scheme: HTTP
+          failureThreshold: 1
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+            scheme: HTTP
+          failureThreshold: 1
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: 8080
+            scheme: HTTP
+          failureThreshold: 10
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        resources:
+            limits:
+              cpu: 250m
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              memory: 512Mi
+        imagePullPolicy: Always
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/iam/iam-apiserver.yaml
+          name: iam
+          subPath: iam-apiserver.yaml
+        - mountPath: /etc/iam/cert
+          name: iam-cert
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+            {}
+      terminationGracePeriodSeconds: 5
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: iam-apiserver.yaml
+            path: iam-apiserver.yaml
+          name: iam
+        name: iam
+      - configMap:
+          defaultMode: 420
+          name: iam-cert
+        name: iam-cert
+---
+# Source: iam/templates/iam-authz-server-deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: iam-authz-server
+  name: iam-authz-server
+spec:
+  replicas: 1
+  progressDeadlineSeconds: 10
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: iam-authz-server
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: iam-authz-server
+    spec:
+      imagePullSecrets:
+        - name: ccr-registry
+      securityContext:
+        {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - iam-authz-server
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      containers:
+      - command:
+        - /opt/iam/bin/iam-authz-server
+        - --config=/etc/iam/iam-authz-server.yaml
+        image: "ccr.ccs.tencentyun.com/marmotedu/iam-authz-server-amd64:v1.6.2"
+        name: iam-authz-server
+        ports:
+        - containerPort: 9443
+          name: secure
+          protocol: TCP
+        - containerPort: 9090
+          name: insecure
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 9090
+            scheme: HTTP
+          failureThreshold: 1
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 9090
+            scheme: HTTP
+          failureThreshold: 1
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: 9090
+            scheme: HTTP
+          failureThreshold: 10
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        resources:
+            limits:
+              cpu: 250m
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              memory: 512Mi
+        imagePullPolicy: Always
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/iam/iam-authz-server.yaml
+          name: iam
+          subPath: iam-authz-server.yaml
+        - mountPath: /etc/iam/cert
+          name: iam-cert
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+            {}
+      terminationGracePeriodSeconds: 5
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: iam-authz-server.yaml
+            path: iam-authz-server.yaml
+          name: iam
+        name: iam
+      - configMap:
+          defaultMode: 420
+          name: iam-cert
+        name: iam-cert
+---
+# Source: iam/templates/iam-pump-deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: iam-pump
+  name: iam-pump
+spec:
+  replicas: 1
+  progressDeadlineSeconds: 10
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: iam-pump
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: iam-pump
+    spec:
+      imagePullSecrets:
+        - name: ccr-registry
+      securityContext:
+        {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - iam-pump
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      containers:
+      - command:
+        - /opt/iam/bin/iam-pump
+        - --config=/etc/iam/iam-pump.yaml
+        image: "ccr.ccs.tencentyun.com/marmotedu/iam-pump-amd64:v1.6.2"
+        name: iam-pump
+        ports:
+        - containerPort: 9443
+          name: secure
+          protocol: TCP
+        - containerPort: 9090
+          name: insecure
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: 7070
+            scheme: HTTP
+          failureThreshold: 1
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 7070
+            scheme: HTTP
+          failureThreshold: 1
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        startupProbe:
+          httpGet:
+            path: /healthz
+            port: 7070
+            scheme: HTTP
+          failureThreshold: 10
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 3
+        resources:
+            limits:
+              cpu: 250m
+              memory: 512Mi
+            requests:
+              cpu: 250m
+              memory: 512Mi
+        imagePullPolicy: Always
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        volumeMounts:
+        - mountPath: /etc/iam/iam-pump.yaml
+          name: iam
+          subPath: iam-pump.yaml
+        - mountPath: /etc/iam/cert
+          name: iam-cert
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+            {}
+      terminationGracePeriodSeconds: 5
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: iam-pump.yaml
+            path: iam-pump.yaml
+          name: iam
+        name: iam
+      - configMap:
+          defaultMode: 420
+          name: iam-cert
+        name: iam-cert
+---
+# Source: iam/templates/iamctl-deployment.yaml
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: iamctl
+  name: iamctl
+spec:
+  replicas: 1
+  progressDeadlineSeconds: 10
+  revisionHistoryLimit: 5
+  selector:
+    matchLabels:
+      app: iamctl
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: iamctl
+    spec:
+      imagePullSecrets:
+        - name: ccr-registry
+      securityContext:
+        {}
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - iamctl
+              topologyKey: kubernetes.io/hostname
+            weight: 100
+      containers:
+      - command:
+        - sleep
+        - "3600"
+        image: "ccr.ccs.tencentyun.com/marmotedu/iamctl-amd64:v1.6.2"
+        name: iamctl
+        resources:
+          limits: 
+            cpu: 250m
+            memory: 500Mi
+          requests:
+            cpu: 250m 
+            memory: 200Mi
+        imagePullPolicy: Always
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+        env:
+          - name: IAM_AUTHZ_SERVER_HOST
+            value: iam-authz-server
+          - name: IAM_APISERVER_HOST
+            value: iam-apiserver
+          - name: IAM_PUMP_HOST
+            value: iam-pump
+        volumeMounts:
+        - mountPath: /etc/iam/iamctl.yaml
+          name: iam
+          subPath: iamctl.yaml
+        - mountPath: /etc/iam/cert
+          name: iam-cert
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext:
+            {}
+      terminationGracePeriodSeconds: 5
+      volumes:
+      - configMap:
+          defaultMode: 420
+          items:
+          - key: iamctl.yaml
+            path: iamctl.yaml
+          name: iam
+        name: iam
+      - configMap:
+          defaultMode: 420
+          name: iam-cert
+        name: iam-cert
+---
+# Source: iam/templates/hpa.yaml

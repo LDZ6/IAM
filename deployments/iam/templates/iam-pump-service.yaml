@@ -1,0 +1,16 @@
+
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: {{ .Values.pump.name }}
+  name: {{ .Values.pump.name }}
+spec:
+  ports:
+  - name: http
+    protocol: TCP
+    {{- toYaml .Values.pump.service.http| nindent 4 }}
+  selector:
+    app: {{ .Values.pump.name }}
+  sessionAffinity: None
+  type: {{ .Values.serviceType }}
